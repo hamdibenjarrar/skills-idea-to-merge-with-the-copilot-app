@@ -3,7 +3,47 @@
 //
 // The markup below renders during the static build. The dynamic behavior —
 // adding a bookmark, generating a short slug, and persisting to the browser —
-// must run ONLY in the client-side <script>
+// must run ONLY in the client-side <script> boundary at the bottom of this
+// file. Astro runs that script in the browser, never during the build, so
+// browser-only APIs are safe there.
+//
+// Pure helpers live in src/lib/bookmarks.js and are covered by unit tests.
+---
+<section class="bookmarks-app">
+  <form id="add-bookmark">
+    <div class="field">
+      <label for="url">Link to save</label>
+      <input
+        id="url"
+        name="url"
+        type="text"
+        inputmode="url"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="https://example.com"
+        required
+      />
+    </div>
+    <button type="submit">Add bookmark</button>
+  </form>
+
+  <p class="hint">Paste a URL and select <strong>Add bookmark</strong> to generate its short <code>mona-</code> slug.</p>
+
+  <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
+
+  <p id="empty-state" class="empty">No bookmarks yet — add your first link above.</p>
+
+  <div id="list-header" hidden>
+    <h2 class="list-title">Saved bookmarks</h2>
+    <button id="clear-all" type="button" class="clear">Clear all</button>
+  </div>
+
+  <ul id="bookmark-list" aria-label="Saved bookmarks" aria-live="polite">
+    <!-- Bookmarks render here in the browser. -->
+  </ul>
+</section>
+
+<script>
   // CLIENT-SIDE BOUNDARY: runs in the browser only, never during the static build.
   // All localStorage access stays in this script.
   import {
@@ -126,26 +166,111 @@
   render();
 </script>
 
-<style>
-  .bookmark .separator {
-    color: var(--muted);
+<style is:global>
+  /* Global on purpose: list rows are created at runtime and do not carry Astro scope attributes. */
+  .bookmarks-app {
+    --card-bg: color-mix(in srgb, var(--accent) 4%, transparent);
     font-family: var(--font-body);
+    margin-bottom: 2.5rem;
   }
-  .form-message {
-    min-height: 1.25rem;
-    margin: 0 0 0.75rem;
-    font-size: 0.85rem;
+  .bookmarks-app form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: end;
+    margin: 1.5rem 0 0.5rem;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: calc(var(--radius) * 1.5);
+    background: var(--card-bg);
   }
-  li.bookmark {
+  .bookmarks-app .field { display: flex; flex-direction: column; gap: 0.35rem; flex: 1 1 16rem; }
+  .bookmarks-app label { font-size: 0.85rem; font-weight: 600; font-family: var(--font-head); }
+  .bookmarks-app input {
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font: inherit;
+    background: Canvas;
+    color: inherit;
+  }
+  .bookmarks-app input:focus-visible,
+  .bookmarks-app button:focus-visible,
+  .bookmarks-app a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .bookmarks-app button {
+    padding: 0.65rem 1.1rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: var(--accent);
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.15s ease, transform 0.15s ease;
+  }
+  .bookmarks-app button:hover { filter: brightness(1.08); }
+  .bookmarks-app button:active { transform: translateY(1px); }
+  .bookmarks-app .hint { margin: 0 0 0.75rem; font-size: 0.8rem; color: var(--muted); }
+  .bookmarks-app .form-message { min-height: 1.25rem; margin: 0 0 1rem; font-size: 0.85rem; color: var(--accent); }
+  .bookmarks-app .empty {
+    margin: 0;
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--muted);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+  .bookmarks-app #list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin: 0.5rem 0 0.75rem;
+  }
+  .bookmarks-app #list-header[hidden],
+  .bookmarks-app .empty[hidden] { display: none; }
+  .bookmarks-app .list-title { margin: 0; font-size: 1rem; font-family: var(--font-head); }
+  .bookmarks-app .clear,
+  .bookmarks-app .copy {
+    background: transparent;
+    color: inherit;
+    border: 1px solid var(--border);
+    padding: 0.3rem 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  .bookmarks-app .clear:hover,
+  .bookmarks-app .copy:hover { border-color: currentColor; filter: none; }
+  .bookmarks-app ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
+  .bookmarks-app li.bookmark {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.6rem;
+    padding: 0.8rem 0.95rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card-bg);
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
-  li.bookmark:hover {
+  .bookmarks-app li.bookmark:hover {
     border-color: var(--accent);
-    box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 15%, transparent);
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--accent) 18%, transparent);
   }
-  .bookmark .url {
+  .bookmarks-app .bookmark .url {
+    flex: 1 1 12rem;
+    overflow-wrap: anywhere;
     color: inherit;
     text-decoration-color: color-mix(in srgb, var(--accent) 60%, transparent);
     text-underline-offset: 3px;
+  }
+  .bookmarks-app .bookmark .separator { color: var(--muted); white-space: pre; }
+  .bookmarks-app .bookmark .slug {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
   }
 </style>
